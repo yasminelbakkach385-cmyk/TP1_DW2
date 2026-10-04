@@ -8,8 +8,9 @@
 </head>
 <body>
 <div class="page">
+  
   <h1>Construisez votre CV</h1>
-  <p class="sous">Renseignez chaque rubrique, enregistrez, puis générez le PDF.</p>
+  <p class="sous">Renseignez chaque rubrique,  puis générez le PDF.</p>
 
   <form action="enregistrer.php" method="post" enctype="multipart/form-data">
 
@@ -36,7 +37,7 @@
 
         <div class="grille">
           <div>
-            <label>E-mail * (identifiant)</label>
+            <label>E-mail *</label>
             <input type="email" name="email" maxlength="100" required>
           </div>
           <div>
@@ -153,7 +154,7 @@
         <input type="month" name="exp_debut[]">
       </div>
       <div>
-        <label>Fin (vide = aujourd'hui)</label>
+        <label>Fin </label>
         <input type="month" name="exp_fin[]">
       </div>
     </div>
@@ -172,6 +173,7 @@
       <option>Débutant</option>
       <option>Intermédiaire</option>
       <option>Avancé</option>
+      <option>Expert</option>
     </select>
     <button type="button" class="suppr" onclick="supprimer(this)">✕</button>
   </div>
@@ -182,15 +184,13 @@
   <div class="ligne">
     <input type="text" name="lang_nom[]" maxlength="50" placeholder="Ex : Français">
     <select name="lang_niveau[]">
-      <option>Notions</option>
-      <option>A1</option>
-      <option>A2</option>
-      <option>B1</option>
-      <option>B2</option>
-      <option>C1</option>
-      <option>C2</option>
-      <option>Courant</option>
       <option>Langue maternelle</option>
+      <option>Bilingue</option>
+      <option>C1</option>
+      <option>B2</option>
+      <option>B1</option>
+      <option>A2</option>
+      
     </select>
     <button type="button" class="suppr" onclick="supprimer(this)">✕</button>
   </div>
