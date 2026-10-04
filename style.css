@@ -1,0 +1,167 @@
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 30px 20px;
+  background: #eef1f6;
+  font-family: Arial, Helvetica, sans-serif;
+  color: #1e3a5f;
+}
+
+.page {
+  max-width: 1000px;
+  margin: 0 auto;
+  background: #fff;
+  border-radius: 20px;
+  padding: 40px 44px;
+}
+
+h1 { margin: 0 0 6px; font-size: 30px; }
+.sous { margin: 0 0 24px; color: #6b7280; }
+
+h2 {
+  margin: 34px 0 2px;
+  font-size: 22px;
+  color: #1e3a5f;
+}
+
+.aide {
+  margin: 0 0 14px;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+label {
+  display: block;
+  margin: 14px 0 6px;
+  font-size: 14px;
+  font-weight: bold;
+  color: #1e3a5f;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="month"],
+select,
+textarea {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid #d5d9e6;
+  border-radius: 12px;
+  font-size: 16px;
+  font-family: inherit;
+  background: #fff;
+}
+
+textarea { min-height: 100px; resize: vertical; }
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: #2a6aa5;
+}
+
+/* Deux colonnes */
+.grille {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 24px;
+}
+
+/* Bloc "informations personnelles" : champs à gauche, photo à droite */
+.perso {
+  display: grid;
+  grid-template-columns: 1fr 200px;
+  gap: 30px;
+}
+
+.photo {
+  border: 1px dashed #cdd3df;
+  border-radius: 12px;
+  padding: 14px;
+  font-size: 12px;
+  color: #6b7280;
+  text-align: center;
+}
+.photo img {
+  display: none;
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 50%;
+  margin: 0 auto 10px;
+}
+.photo input { font-size: 12px; margin-bottom: 8px; width: 100%; }
+
+/* Carte d'un élément répétable (expérience, formation, projet) */
+.bloc {
+  position: relative;
+  background: #f5f7fb;
+  border: 1px solid #dde2ee;
+  border-radius: 14px;
+  padding: 20px 22px 22px;
+  margin-bottom: 14px;
+}
+
+/* Ligne simple (compétence, langue) */
+.ligne {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.ligne input { flex: 1; }
+.ligne select { width: 220px; }
+
+/* Bouton de suppression (croix rouge) */
+.suppr {
+  background: none;
+  border: none;
+  color: #b83232;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+.bloc .suppr {
+  position: absolute;
+  top: 14px;
+  right: 18px;
+}
+
+/* Bouton "+ Ajouter ..." en pointillés */
+.ajout {
+  display: block;
+  width: 100%;
+  padding: 16px;
+  background: #fff;
+  border: 2px dashed #cdd3df;
+  border-radius: 12px;
+  color: #2a6aa5;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+}
+.ajout:hover { background: #f5f9fd; }
+
+/* Bouton final */
+.actions {
+  margin-top: 30px;
+  padding-top: 24px;
+  border-top: 1px solid #dde2ee;
+  text-align: right;
+}
+.principal {
+  background: #1e3a5f;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 14px 30px;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+}
+.principal:hover { background: #16304f; }
+
+@media (max-width: 700px) {
+  .page { padding: 24px 18px; }
+  .grille, .perso { grid-template-columns: 1fr; }
+}

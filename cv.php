@@ -1,6 +1,8 @@
 <?php
-// Dompdf installé avec : composer require dompdf/dompdf
+ob_start();   // met de côté tout affichage parasite, pour ne pas corrompre le PDF
+
 require __DIR__ . '/vendor/autoload.php';
+require __DIR__ . '/config.php';
 
 use Dompdf\Dompdf;
 use Dompdf\Options;
@@ -12,33 +14,31 @@ function h($texte) {
     return htmlspecialchars(trim($texte ?? ''), ENT_QUOTES, 'UTF-8');
 }
 
-// "2023-03" -> "03/2023"
+// "2023-03-01" (format DATE de MySQL) -> "03/2023"
 function moisAnnee($valeur) {
     if (!$valeur) return '';
-    $p = explode('-', $valeur);
-    return $p[1] . '/' . $p[0];
+    return date('m/Y', strtotime($valeur));
 }
 
-// Transforme "a, b, c" en tableau ['a','b','c'] sans éléments vides
-function versListe($texte) {
-    return array_filter(array_map('trim', explode(',', $texte ?? '')));
+// Lit toutes les lignes d'une table pour un e-mail (le nom de table vient d'ici, jamais de l'utilisateur)
+function lignes($pdo, $table, $email, $ordre) {
+    $st = $pdo->prepare("SELECT * FROM $table WHERE email = ? ORDER BY $ordre");
+    $st->execute([$email]);
+    return $st->fetchAll();
 }
 
-// Découpe la photo en carré, puis la rend ronde (fond transparent) -> renvoie une image base64
+// Découpe la photo en carré, puis la rend ronde -> renvoie une image base64
 function photoRonde($fichier) {
     $type = getimagesize($fichier)[2];
     $src  = ($type == IMAGETYPE_PNG) ? imagecreatefrompng($fichier) : imagecreatefromjpeg($fichier);
 
-    // 1. carré centré
     $w = imagesx($src); $h = imagesy($src); $c = min($w, $h);
     $carre = imagecrop($src, ['x' => (int)(($w - $c) / 2), 'y' => (int)(($h - $c) / 2), 'width' => $c, 'height' => $c]);
 
-    // 2. redimensionner à 300x300
     $t = 300;
     $petit = imagecreatetruecolor($t, $t);
     imagecopyresampled($petit, $carre, 0, 0, 0, 0, $t, $t, $c, $c);
 
-    // 3. ne garder que les pixels à l'intérieur du cercle
     $sortie = imagecreatetruecolor($t, $t);
     imagealphablending($sortie, false);
     imagesavealpha($sortie, true);
@@ -58,87 +58,97 @@ function photoRonde($fichier) {
     return 'data:image/png;base64,' . base64_encode($png);
 }
 
-// ---------- 1. Récupérer les données ----------
-$prenom   = h($_POST['prenom']);
-$nom      = h($_POST['nom']);
-$poste    = h($_POST['poste']);
-$email    = h($_POST['email']);
-$tel      = h($_POST['telephone']);
-$ville    = h($_POST['ville']);
-$linkedin = h($_POST['linkedin']);
-$profil   = h($_POST['profil']);
+// ---------- 1. Récupérer les données dans la base ----------
+$email = trim($_GET['email'] ?? '');
+if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    exit('E-mail invalide.');
+}
 
+$st = $pdo->prepare('SELECT * FROM utilisateur WHERE email = ?');
+$st->execute([$email]);
+$u = $st->fetch();
+if (!$u) {
+    exit('Aucun CV enregistré pour cet e-mail.');
+}
+
+$formations = lignes($pdo, 'formation',      $email, 'date_debut DESC');
+$stages     = lignes($pdo, 'stage',          $email, 'date_debut DESC');
+$comps      = lignes($pdo, 'competence',     $email, 'id');
+$langues    = lignes($pdo, 'langue',         $email, 'id');
+$interets   = lignes($pdo, 'centre_interet', $email, 'id');
+$projets     = lignes($pdo, 'projet',         $email, 'id');
+$softs       = lignes($pdo, 'soft_skill',     $email, 'id');
+
+$prenom = h($u['prenom']);
+$nom    = h($u['nom']);
+$poste  = h($u['poste']);
+$profil = h($u['profil']);
+
+// Photo ronde (si elle existe sur le disque)
 $photo = '';
-if (isset($_FILES['photo']) && $_FILES['photo']['error'] === 0) {
-    $photo = photoRonde($_FILES['photo']['tmp_name']);
+if ($u['photo'] && is_file(__DIR__ . '/uploads/' . $u['photo'])) {
+    $photo = photoRonde(__DIR__ . '/uploads/' . $u['photo']);
 }
 
 // ---------- 2. Construire les blocs HTML ----------
 
-// Expériences
-$htmlExp = '';
-$exp_poste = $_POST['exp_poste'] ?? [];
-foreach ($exp_poste as $i => $p) {
-    if (trim($p) === '') continue;
-    $debut = moisAnnee($_POST['exp_debut'][$i]);
-    $fin   = $_POST['exp_fin'][$i] ? moisAnnee($_POST['exp_fin'][$i]) : "Aujourd'hui";
-    $htmlExp .= '<div class="item">'
-        . '<div class="titre">' . h($p) . '</div>'
-        . '<div class="lien">' . h($_POST['exp_entreprise'][$i]) . ($_POST['exp_lieu'][$i] ? ', ' . h($_POST['exp_lieu'][$i]) : '') . '</div>'
-        . '<div class="date">' . $debut . ' - ' . $fin . '</div>'
-        . '<div class="texte">' . nl2br(h($_POST['exp_missions'][$i])) . '</div>'
-        . '</div>';
-}
-
 // Formations
 $htmlFor = '';
-foreach ($_POST['for_diplome'] ?? [] as $i => $d) {
-    if (trim($d) === '') continue;
+foreach ($formations as $f) {
     $htmlFor .= '<div class="item">'
-        . '<div class="titre">' . h($d) . '</div>'
-        . '<div class="lien">' . h($_POST['for_etablissement'][$i]) . '</div>'
-        . '<div class="date">' . h($_POST['for_debut'][$i]) . ' - ' . h($_POST['for_fin'][$i]) . '</div>'
+        . '<div class="titre">' . h($f['intitule']) . '</div>'
+        . '<div class="lien">' . h($f['etablissement']) . '</div>'
+        . '<div class="date">' . moisAnnee($f['date_debut']) . ' - ' . moisAnnee($f['date_fin']) . '</div>'
         . '</div>';
 }
 
-// Compétences
+// Stages
+$htmlExp = '';
+foreach ($stages as $s) {
+    $fin = $s['date_fin'] ? moisAnnee($s['date_fin']) : "Aujourd'hui";
+    $htmlExp .= '<div class="item">'
+        . '<div class="titre">' . h($s['poste'] ?: $s['entreprise']) . '</div>'
+        . '<div class="lien">' . h($s['entreprise']) . ($s['lieu'] ? ', ' . h($s['lieu']) : '') . '</div>'
+        . '<div class="date">' . moisAnnee($s['date_debut']) . ' - ' . $fin . '</div>'
+        . '<div class="texte">' . nl2br(h($s['description'])) . '</div>'
+        . '</div>';
+}
+
+// Compétences, langues, centres d'intérêt
 $htmlComp = '';
-foreach ($_POST['comp_nom'] ?? [] as $i => $n) {
-    if (trim($n) === '') continue;
-    $htmlComp .= '<li>' . h($n) . ' <span class="niveau">(' . h($_POST['comp_niveau'][$i]) . ')</span></li>';
+foreach ($comps as $c) {
+    $htmlComp .= '<li>' . h($c['libelle']) . ' <span class="niveau">(' . h($c['niveau']) . ')</span></li>';
 }
-
-// Langues
 $htmlLang = '';
-foreach ($_POST['lang_nom'] ?? [] as $i => $n) {
-    if (trim($n) === '') continue;
-    $htmlLang .= '<li>' . h($n) . ' <span class="niveau">(' . h($_POST['lang_niveau'][$i]) . ')</span></li>';
+foreach ($langues as $l) {
+    $htmlLang .= '<li>' . h($l['langue']) . ' <span class="niveau">(' . h($l['niveau']) . ')</span></li>';
 }
-
-// Projets
-$htmlProj = '';
-foreach ($_POST['proj_titre'] ?? [] as $i => $t) {
-    if (trim($t) === '') continue;
-    $htmlProj .= '<li><b>' . h($t) . '</b><br>' . h($_POST['proj_desc'][$i]) . '</li>';
-}
-
-// Soft skills et intérêts
-$htmlSoft = '';
-foreach (versListe($_POST['soft_skills']) as $s) { $htmlSoft .= '<li>' . h($s) . '</li>'; }
 $htmlInt = '';
-foreach (versListe($_POST['interets']) as $s) { $htmlInt .= '<li>' . h($s) . '</li>'; }
+foreach ($interets as $i) {
+    $htmlInt .= '<li>' . h($i['libelle']) . '</li>';
+}
 
-// Ligne de contact en en-tête
-$contact = array_filter([$email, $tel, $ville, $linkedin]);
+// Soft skills et projets académiques
+$htmlSoft = '';
+foreach ($softs as $s) {
+    $htmlSoft .= '<li>' . h($s['libelle']) . '</li>';
+}
+$htmlProj = '';
+foreach ($projets as $p) {
+    $htmlProj .= '<li><b>' . h($p['titre']) . '</b><br>' . h($p['description']) . '</li>';
+}
+
+// Ligne de contact
+$contact = array_filter([h($u['email']), h($u['telephone']), h($u['adresse']), h($u['linkedin'])]);
 $htmlContact = implode(' &nbsp;|&nbsp; ', $contact);
 
-// Petite fonction : affiche une section seulement si elle n'est pas vide
+// Affiche une section seulement si elle n'est pas vide
 function section($titre, $contenu) {
     if (trim($contenu) === '') return '';
     return '<h2>' . $titre . '</h2>' . $contenu;
 }
 
-// ---------- 3. Le HTML du CV (mis en page en 2 colonnes avec un tableau) ----------
+// ---------- 3. Le HTML du CV ----------
 $html = '
 <html><head><meta charset="UTF-8">
 <style>
@@ -178,7 +188,7 @@ $html = '
     . section('Expériences professionnelles', $htmlExp) . '
   </td>
   <td class="droite">'
-    . section('Profil', '<div class="texte">' . nl2br($profil) . '</div>')
+    . section('Profil', $profil !== '' ? '<div class="texte">' . nl2br($profil) . '</div>' : '')
     . section('Compétences', $htmlComp ? '<ul>' . $htmlComp . '</ul>' : '')
     . section('Langues', $htmlLang ? '<ul>' . $htmlLang . '</ul>' : '')
     . section('Soft skills', $htmlSoft ? '<ul>' . $htmlSoft . '</ul>' : '')
@@ -197,4 +207,9 @@ $dompdf = new Dompdf($options);
 $dompdf->loadHtml($html, 'UTF-8');
 $dompdf->setPaper('A4', 'portrait');
 $dompdf->render();
-$dompdf->stream('CV_' . $nom . '.pdf', ['Attachment' => true]);
+
+// On jette tout affichage parasite avant d'envoyer le PDF
+ob_end_clean();
+
+$nomFichier = preg_replace('/[^A-Za-z0-9_-]/', '_', $u['nom']);
+$dompdf->stream('CV_' . $nomFichier . '.pdf', ['Attachment' => true]);
