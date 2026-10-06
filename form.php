@@ -109,6 +109,10 @@
     </div>
 
   </form>
+
+  <!-- Lien ajouté : accès aux offres de stage -->
+  <p><a href="offres.php">Voir les offres de stage</a></p>
+
 </div>
 
 <!-- Modèle d'une formation -->
