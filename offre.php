@@ -103,7 +103,6 @@ $offres = $pdo->query(
     </p>
   <?php endforeach; ?>
 
-  <p><a href="postuler.php">Page de candidature (étudiants)</a></p>
 </div>
 </body>
 </html>

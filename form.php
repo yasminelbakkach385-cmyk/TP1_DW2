@@ -213,18 +213,28 @@
 
 <script>
 // Aperçu de la photo + contrôle de la taille (5 Mo)
+// Aperçu de la photo + contrôle du format et de la taille (bulle native du navigateur)
 function apercuPhoto(input) {
   var img = document.getElementById('apercu');
-  if (input.files && input.files[0]) {
-    if (input.files[0].size > 5 * 1024 * 1024) {
-      alert('La photo dépasse 5 Mo.');
-      input.value = '';
-      img.style.display = 'none';
-      return;
-    }
-    img.src = URL.createObjectURL(input.files[0]);
-    img.style.display = 'block';
+  input.setCustomValidity('');          // on repart d'un état valide
+  img.style.display = 'none';
+
+  if (!input.files || !input.files[0]) return;
+  var fichier = input.files[0];
+
+  if (fichier.type !== 'image/png' && fichier.type !== 'image/jpeg') {
+    input.setCustomValidity('Veuillez choisir une image PNG ou JPG.');
+    input.reportValidity();             // affiche la bulle
+    return;
   }
+  if (fichier.size > 5 * 1024 * 1024) {
+    input.setCustomValidity('La photo dépasse 5 Mo.');
+    input.reportValidity();
+    return;
+  }
+
+  img.src = URL.createObjectURL(fichier);
+  img.style.display = 'block';
 }
 
 // Copie un modèle <template> dans la zone choisie
